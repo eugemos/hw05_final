@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block title %}Последние записи избранных авторов{% endblock %}
+{% block content %}
+  {% include 'posts/includes/switcher.html' with follow=True %}
+  <div class="container py-5">
+    <h1>Последние записи избранных авторов</h1>
+    {% include 'posts/includes/content_page.html' with group_ref=True %}
+    {% include 'posts/includes/paginator.html' %}
+  </div>
+{% endblock %}

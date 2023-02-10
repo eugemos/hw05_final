@@ -81,3 +81,23 @@ class Comment(Published):
 
     def __str__(self):
         return self.text[:NUMBER_OF_COMMENT_CHARS_DISPLAYED]
+
+
+class Follow(models.Model):
+    """Представляет подписку посетителя сайта на автора."""
+
+    user = models.ForeignKey(
+        User,
+        verbose_name='Подписчик',
+        related_name='follower',
+        on_delete=models.CASCADE,
+    )
+    author = models.ForeignKey(
+        User,
+        verbose_name='Автор',
+        related_name='following',
+        on_delete=models.CASCADE,
+    )
+
+    def __str__(self):
+        return f'{self.user.username}-->{self.author.username}'
