@@ -26,11 +26,11 @@ class URLTestCase(URLTests):
             group=cls.group,
             text='Запись для тестирования.',
         )
-        cls.url_of_add_comment = f'/posts/{cls.post.pk}/comment/'
+        # cls.url_of_add_comment = f'/posts/{cls.post.pk}/comment/'
 
     @classmethod
-    def get_urls_for_all(cls):
-        """Возвращает словарь {'url':'template'} для страниц приложения,
+    def get_view_urls_for_all(cls):
+        """Возвращает словарь {'url':'template'} для view-страниц приложения,
         которые должны быть доступны без авторизации.
         """
         slug = cls.group.slug
@@ -44,18 +44,29 @@ class URLTestCase(URLTests):
         }
 
     @classmethod
-    def get_urls_for_authorized(cls):
-        """Возвращает словарь {'url':'template'} для страниц приложения,
+    def get_view_urls_for_authorized(cls):
+        """Возвращает словарь {'url':'template'} для view-страниц приложения,
         которые должны быть доступны только авторизованным клиентам,
-        но без требования быть автором поста (кроме 'add_comment').
+        но без требования быть автором поста.
         """
         return {
             '/create/': 'posts/create_post.html',
+            '/follow/': 'posts/follow.html',
         }
 
     @classmethod
-    def get_urls_for_author(cls):
-        """Возвращает словарь {'url':'template'} для страниц приложения,
+    def get_action_urls(cls):
+        """Возвращает словарь {'url': None} для action-страниц приложения.
+        """
+        return {
+            f'/posts/{cls.post.pk}/comment/': None,
+            f'/profile/{cls.author.username}/follow/': None,
+            f'/profile/{cls.author.username}/unfollow/': None,
+        }
+
+    @classmethod
+    def get_view_urls_for_author(cls):
+        """Возвращает словарь {'url':'template'} для view-страниц приложения,
         которые должны быть доступны только автору поста.
         """
         post_id = cls.post.pk
@@ -71,6 +82,8 @@ class URLTestCase(URLTests):
             '/nonexistent_page/',
             '/group/nonexistent_slug/',
             '/profile/nonexistent_username/',
+            '/profile/nonexistent_username/follow/',
+            '/profile/nonexistent_username/unfollow/',
             f'/posts/{nonexistent_post_id}/',
             f'/posts/{nonexistent_post_id}/edit/',
             f'/posts/{nonexistent_post_id}/comment/',
@@ -78,13 +91,32 @@ class URLTestCase(URLTests):
 
     @classmethod
     def get_redirection_urls_for_not_author(cls):
-        """Возвращает словарь {'url':'redirect url'} для страниц приложения,
+        """
+        Возвращает словарь {'url':'redirect url'} для view-страниц приложения,
         которые должны быть доступны только автору поста.
         """
         post_id = cls.post.pk
         return {
             reverse('posts:post_edit', args=[post_id]):
                 reverse('posts:post_detail', args=[post_id]),
+        }
+
+    @classmethod
+    def get_redirection_urls_for_action_pages(cls):
+        """Возвращает словарь {'url':'redirect url'} для action-страниц
+        приложения.
+        """
+        post_id = cls.post.pk
+        username = cls.author.username
+        return {
+            reverse('posts:add_comment', args=[post_id]):
+                reverse('posts:post_detail', args=[post_id]),
+
+            reverse('posts:profile_follow', args=[username]):
+                reverse('posts:profile', args=[username]),
+
+            reverse('posts:profile_unfollow', args=[username]):
+                reverse('posts:profile', args=[username]),
         }
 
     def setUp(self):
@@ -95,59 +127,58 @@ class URLTestCase(URLTests):
         self.author_client = Client()
         self.author_client.force_login(self.author)
 
-    def test_pages_for_all_accessible_for_unauthorized_client(self):
-        """Страницы приложения, которые должны быть доступны без авторизации,
-        доступны неавторизованному клиенту?
+    def test_view_pages_for_all_accessible_for_unauthorized_client(self):
+        """View-страницы приложения, которые должны быть доступны без
+        авторизации, доступны неавторизованному клиенту?
         """
-        urls = self.get_urls_for_all()
+        urls = self.get_view_urls_for_all()
         self._test_response_is_ok(urls, self.client)
 
     def test_pages_not_for_all_redirect_unauthorized_client_properly(self):
         """Страницы приложения, которые должны быть доступны только
-        авторизованным клиентам (включая 'add_comment'), перенаправляют
-        неавторизованного клиента на надлежащий URL?
+        авторизованным клиентам, перенаправляют неавторизованного клиента
+        на надлежащий URL?
         """
-        urls = self.get_urls_for_authorized()
-        urls.update(self.get_urls_for_author())
-        urls.update({self.url_of_add_comment: None})
+        urls = self.get_view_urls_for_authorized()
+        urls.update(self.get_view_urls_for_author())
+        urls.update(self.get_action_urls())
         self._test_redirection(
             urls, self.client,
             lambda url: reverse('users:login') + f'?next={url}'
         )
 
-    def test_pages_for_authorized_accessible_for_authorized_client(self):
-        """Страницы приложения, которые должны быть доступны только
-        авторизованным клиентам, но без требования быть автором поста
-        (кроме 'add_comment'), доступны авторизованному клиенту?
+    def test_view_pages_for_authorized_accessible_for_authorized_client(self):
+        """View-страницы приложения, которые должны быть доступны только
+        авторизованным клиентам, но без требования быть автором поста,
+        доступны авторизованному клиенту?
         """
-        urls = self.get_urls_for_authorized()
+        urls = self.get_view_urls_for_authorized()
         self._test_response_is_ok(urls, self.authorized_client)
 
-    def test_add_comment_page_redirects_authorized_client_properly(self):
-        """Страница 'add_comment' перенаправляет авторизованного клиента
+    def test_action_pages_redirects_authorized_client_properly(self):
+        """Action-страницы перенаправляют авторизованного клиента
         на надлежащий URL?
         """
-        urls = (self.url_of_add_comment,)
-        self._test_redirection(
-            urls, self.authorized_client,
-            lambda url: reverse('posts:post_detail', args=[self.post.pk])
-        )
+        urls = self.get_action_urls()
+        redirection_urls = self.get_redirection_urls_for_action_pages()
+        self._test_redirection(urls, self.authorized_client,
+                               lambda url: redirection_urls[url])
 
-    def test_pages_for_author_redirect_authorized_client_properly(self):
-        """Cтраницы приложения, которые должны быть доступны только автору
+    def test_view_pages_for_author_redirect_authorized_client_properly(self):
+        """View-страницы приложения, которые должны быть доступны только автору
         поста, перенаправляют авторизованного клиента, не являющегося автором
         поста, на надлежащий URL?
         """
-        urls = self.get_urls_for_author()
+        urls = self.get_view_urls_for_author()
         redirection_urls = self.get_redirection_urls_for_not_author()
         self._test_redirection(urls, self.authorized_client,
                                lambda url: redirection_urls[url])
 
-    def test_pages_for_author_accessible_for_author(self):
-        """Cтраницы приложения, которые должны быть доступны только автору
+    def test_view_pages_for_author_accessible_for_author(self):
+        """View-страницы приложения, которые должны быть доступны только автору
         поста, доступны автору поста?
         """
-        urls = self.get_urls_for_author()
+        urls = self.get_view_urls_for_author()
         self._test_response_is_ok(urls, self.author_client)
 
     def test_nonexistent_pages_unaccessible(self):
@@ -155,9 +186,9 @@ class URLTestCase(URLTests):
         urls = self.get_nonexistent_urls()
         self._test_response_is_not_found(urls, self.author_client)
 
-    def test_all_pages_use_proper_templates(self):
-        """Все страницы приложения используют надлежащие шаблоны?"""
-        urls = self.get_urls_for_all()
-        urls.update(self.get_urls_for_authorized())
-        urls.update(self.get_urls_for_author())
+    def test_all_view_pages_use_proper_templates(self):
+        """Все view-страницы приложения используют надлежащие шаблоны?"""
+        urls = self.get_view_urls_for_all()
+        urls.update(self.get_view_urls_for_authorized())
+        urls.update(self.get_view_urls_for_author())
         self._test_templates(urls, self.author_client)

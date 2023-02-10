@@ -13,6 +13,10 @@ class URLTests(TestCase):
         """Запросы к заданным URL успешны?"""
         self._test_response_status(urls, client, HTTPStatus.OK)
 
+    def _test_response_is_redirection(self, urls, client):
+        """Запросы к заданным URL были перенаправлены?"""
+        self._test_response_status(urls, client, HTTPStatus.FOUND)
+
     def _test_response_is_not_found(self, urls, client):
         """Страницы по заданным URL не найдены?"""
         self._test_response_status(urls, client, HTTPStatus.NOT_FOUND)
@@ -40,8 +44,7 @@ class URLTests(TestCase):
 
 
 class BaseSimpleURLTestCase(URLTests):
-    """
-    Заготовка набора тестов для простого приложения, проверяющих различные
+    """Заготовка набора тестов для простого приложения, проверяющих различные
     реакции при обращении по заданным URL.
     """
 

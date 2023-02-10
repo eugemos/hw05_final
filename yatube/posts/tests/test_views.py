@@ -1,10 +1,10 @@
 """Тесты для проверки view-функций приложения posts."""
-from django.test import Client
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from core.tests.utils import BaseSimpleURLTestCase
 from users.models import User
-from posts.models import Post, Group
+from posts.models import Post, Group, Follow
 from posts.constants import (NUMBER_OF_POSTS_ON_MAIN_PAGE,
                              NUMBER_OF_POSTS_ON_GROUP_PAGE,
                              NUMBER_OF_POSTS_ON_USER_PAGE,
@@ -37,14 +37,15 @@ class PageNamesTestCase(BaseSimpleURLTestCase):
 
     @classmethod
     def get_urls(cls):
-        """Возвращает словарь {'url':'template'} для всех страниц приложения
-        (кроме 'add_comment').
+        """Возвращает словарь {'url':'template'} для всех view-страниц
+        приложения.
         """
         slug = cls.group.slug
         username = cls.user.username
         post_id = cls.post.pk
         return {
             reverse('posts:index'): 'posts/index.html',
+            reverse('posts:follow_index'): 'posts/follow.html',
             reverse('posts:group_list', args=[slug]):
                 'posts/group_list.html',
             reverse('posts:profile', args=[username]):
@@ -57,25 +58,34 @@ class PageNamesTestCase(BaseSimpleURLTestCase):
                 'posts/create_post.html',
         }
 
+    @classmethod
+    def get_urls_for_action_pages(cls):
+        """Возвращает кортеж с URL всех action-страниц приложения."""
+        post_id = cls.post.pk
+        username = cls.author.username
+        return (
+            reverse('posts:add_comment', args=[post_id]),
+            reverse('posts:profile_follow', args=[username]),
+            reverse('posts:profile_unfollow', args=[username]),
+        )
+
     def setUp(self):
         """Создаёт фикстуры для отдельного теста."""
         super().setUp()
         self.client.force_login(self.author)
 
-    def test_all_pages_accessible_by_name(self):
-        """Все страницы приложения (кроме 'add_comment') доступны по имени?"""
+    def test_view_pages_accessible_by_name(self):
+        """Все view-страницы приложения доступны по имени?"""
         self._test_response_is_ok()
 
-    def test_add_comment_page_accessible_by_name(self):
-        """Страница 'add_comment' доступна по имени?"""
-        urls = (self.url_of_add_comment,)
-        self._test_redirection(
-            urls, self.client,
-            lambda url: reverse('posts:post_detail', args=[self.post.pk])
-        )
+    def test_action_pages_accessible_by_name(self):
+        """Все action-страницы приложения доступны по имени?"""
+        urls = self.get_urls_for_action_pages()
+        self._test_response_is_redirection(urls, self.client)
 
-    def test_all_page_names_correspond_to_proper_templates(self):
-        """Всем именам страниц приложения сопоставлены надлежащие шаблоны?"""
+    def test_view_page_names_correspond_to_proper_templates(self):
+        """Всем именам view-страниц приложения сопоставлены надлежащие шаблоны?
+        """
         self._test_templates()
 
 
@@ -224,7 +234,7 @@ class PostEditPageTestCase(utils.BaseTestCaseForPostFormView,
 
 class NewPostCreationTestCase(utils.BaseTestCaseForPostFormWork):
     """Набор тестов для проверки правильности реакции приложения posts
-    на создание новой записи, отнесённой к какой-либо группе.
+    на создание новой записи.
     """
 
     @classmethod
@@ -243,8 +253,12 @@ class NewPostCreationTestCase(utils.BaseTestCaseForPostFormWork):
             slug='test-other',
             description='Другая группа записей',
         )
+        cls.user = User.objects.create_user(username='test-user')
+        cls.user_follower = User.objects.create_user(username='follower-user')
+        Follow.objects.create(author=cls.author, user=cls.user_follower)
 
     def setUp(self):
+        """Создаёт фикстуры для отдельного теста."""
         super().setUp()
         author_client = Client()
         author_client.force_login(self.author)
@@ -260,9 +274,11 @@ class NewPostCreationTestCase(utils.BaseTestCaseForPostFormWork):
         """Запись появилась на надлежащих страницах?"""
         urls = (
             reverse('posts:index'),
+            reverse('posts:follow_index'),
             reverse('posts:group_list', args=[self.group.slug]),
             reverse('posts:profile', args=[self.author.username]),
         )
+        self.client.force_login(self.user_follower)
         for url in urls:
             with self.subTest(page=url):
                 self._test_post_appeared_on_page(url, self.post)
@@ -270,9 +286,11 @@ class NewPostCreationTestCase(utils.BaseTestCaseForPostFormWork):
     def test_post_not_appeared_on_pages_not_intended_for_it(self):
         """Запись не появилась на ненадлежащих страницах?"""
         urls = (
+            reverse('posts:follow_index'),
             reverse('posts:group_list', args=[self.group_other.slug]),
             reverse('posts:profile', args=[self.author_other.username]),
         )
+        self.client.force_login(self.user)
         for url in urls:
             with self.subTest(page=url):
                 self._test_post_not_appeared_on_page(url, self.post)
@@ -313,6 +331,7 @@ class NewCommentCreationTestCase(utils.BaseTestCaseForCommentFormWork):
         )
 
     def setUp(self):
+        """Создаёт фикстуры для отдельного теста."""
         super().setUp()
         authorized_client = Client()
         authorized_client.force_login(self.user)
@@ -352,3 +371,44 @@ class NewCommentCreationTestCase(utils.BaseTestCaseForCommentFormWork):
         response = self.client.get(url)
         page_comments = response.context['comments']
         self.assertNotIn(comment, page_comments)
+
+
+class FollowUnfollowTestCase(TestCase):
+    """Набор тестов для проверки возможности подписки/отписки."""
+
+    @classmethod
+    def setUpClass(cls):
+        """Создаёт фикстуры для всего набора тестов."""
+        super().setUpClass()
+        cls.author = User.objects.create_user(username='test-author')
+        cls.user = User.objects.create_user(username='test-user')
+
+    def setUp(self):
+        """Создаёт фикстуры для отдельного теста."""
+        super().setUp()
+        self.client.force_login(self.user)
+
+    def test_authorized_user_can_follow_author(self):
+        """Авторизованный пользователь может подписаться на автора?"""
+        self.assertFalse(
+            Follow.objects.filter(user=self.user, author=self.author).exists()
+        )
+        self.client.get(
+            reverse('posts:profile_follow', args=[self.author.username])
+        )
+        self.assertTrue(
+            Follow.objects.filter(user=self.user, author=self.author).exists()
+        )
+
+    def test_authorized_user_can_unfollow_author(self):
+        """Авторизованный пользователь может отменить подписку на автора?"""
+        Follow.objects.create(user=self.user, author=self.author)
+        self.assertTrue(
+            Follow.objects.filter(user=self.user, author=self.author).exists()
+        )
+        self.client.get(
+            reverse('posts:profile_unfollow', args=[self.author.username])
+        )
+        self.assertFalse(
+            Follow.objects.filter(user=self.user, author=self.author).exists()
+        )

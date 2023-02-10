@@ -152,6 +152,7 @@ def profile_follow(request, username):
     Follow.objects.get_or_create(author=author, user=user)
     return redirect('posts:profile', username=username)
 
+
 @login_required
 def profile_unfollow(request, username):
     """Обрабатывает запрос на удаление подписки на автора username."""
