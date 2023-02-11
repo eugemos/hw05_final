@@ -7,6 +7,7 @@
       {{ group.description }}
     </p>
     {% include 'posts/includes/content_page.html' with group_ref=False %}
+    {% for post in page_obj %}{% endfor %}
     {% include 'posts/includes/paginator.html' %}
   </div>
 {% endblock %}

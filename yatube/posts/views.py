@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, get_object_or_404, redirect
 from django.urls import reverse
+from django.views.decorators.cache import cache_page
 
 from users.models import User
 from .models import Post, Group, Follow
@@ -12,6 +13,7 @@ from .constants import (NUMBER_OF_POSTS_ON_MAIN_PAGE,
                         )
 
 
+@cache_page(20, key_prefix='index_page')
 def index(request):
     """Отображает главную страницу."""
     posts = Post.objects.select_related('group')
@@ -149,7 +151,8 @@ def profile_follow(request, username):
     """Обрабатывает запрос на создание подписки на автора username."""
     author = get_object_or_404(User, username=username)
     user = request.user
-    Follow.objects.get_or_create(author=author, user=user)
+    if author != user:
+        Follow.objects.get_or_create(author=author, user=user)
     return redirect('posts:profile', username=username)
 
 

@@ -2,12 +2,17 @@
 from http import HTTPStatus
 
 from django.test import TestCase
+from django.core.cache import cache
 
 
 class URLTests(TestCase):
     """
     Набор функций, проверяющих различные реакции при обращении по заданным URL.
     """
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
 
     def _test_response_is_ok(self, urls, client):
         """Запросы к заданным URL успешны?"""

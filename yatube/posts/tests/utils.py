@@ -8,6 +8,8 @@ from django.test import TestCase, override_settings
 from django.conf import settings
 from django import forms
 from django.urls import reverse
+from django.core.cache import cache
+
 
 from posts.models import Post, Group, Comment
 from users.models import User
@@ -48,6 +50,10 @@ class BaseTestCaseWithUploadedFiles(TestCase):
         """Очищает подпапку posts во временной папке для медиафайлов."""
         shutil.rmtree(os.path.join(TEMP_MEDIA_ROOT, 'posts'),
                       ignore_errors=True)
+
+    def setUp(self):
+        super().setUp()
+        cache.clear()
 
     def _test_files_are_equal(self, f1, f2):
         """Файлы f1, f2 имеют одинаковое содержимое?"""
