@@ -1,8 +1,8 @@
 """Тесты для проверки view-функций приложения posts."""
-from django.test import Client, TestCase
+from django.test import Client
 from django.urls import reverse
 
-from core.tests.utils import BaseSimpleURLTestCase
+from core.tests.utils import BaseSimpleURLTestCase, BaseTestCase
 from users.models import User
 from posts.models import Post, Group, Follow
 from posts.constants import (NUMBER_OF_POSTS_ON_MAIN_PAGE,
@@ -13,8 +13,7 @@ import posts.tests.utils as utils
 
 
 class PageNamesTestCase(BaseSimpleURLTestCase):
-    """Набор тестов для проверки имён страниц приложения posts.
-    """
+    """Набор тестов для проверки имён страниц приложения posts."""
 
     @classmethod
     def setUpClass(cls):
@@ -32,18 +31,20 @@ class PageNamesTestCase(BaseSimpleURLTestCase):
             group=cls.group,
             text='Запись для тестирования.',
         )
-        cls.url_of_add_comment = reverse('posts:add_comment',
-                                         args=[cls.post.pk])
 
-    @classmethod
-    def get_urls(cls):
-        """Возвращает словарь {'url':'template'} для всех view-страниц
-        приложения.
+    def setUp(self):
+        """Создаёт фикстуры для отдельного теста."""
+        super().setUp()
+        self.client.force_login(self.author)
+
+    def test_view_pages_accessible_by_name(self):
+        """Все view-страницы приложения доступны по имени и используют
+        надлежащие шаблоны?
         """
-        slug = cls.group.slug
-        username = cls.user.username
-        post_id = cls.post.pk
-        return {
+        slug = self.group.slug
+        username = self.user.username
+        post_id = self.post.pk
+        urls = {
             reverse('posts:index'): 'posts/index.html',
             reverse('posts:follow_index'): 'posts/follow.html',
             reverse('posts:group_list', args=[slug]):
@@ -57,36 +58,18 @@ class PageNamesTestCase(BaseSimpleURLTestCase):
             reverse('posts:post_edit', args=[post_id]):
                 'posts/create_post.html',
         }
-
-    @classmethod
-    def get_urls_for_action_pages(cls):
-        """Возвращает кортеж с URL всех action-страниц приложения."""
-        post_id = cls.post.pk
-        username = cls.author.username
-        return (
-            reverse('posts:add_comment', args=[post_id]),
-            reverse('posts:profile_follow', args=[username]),
-            reverse('posts:profile_unfollow', args=[username]),
-        )
-
-    def setUp(self):
-        """Создаёт фикстуры для отдельного теста."""
-        super().setUp()
-        self.client.force_login(self.author)
-
-    def test_view_pages_accessible_by_name(self):
-        """Все view-страницы приложения доступны по имени?"""
-        self._test_response_is_ok()
+        self._test_pages_accessible(urls)
 
     def test_action_pages_accessible_by_name(self):
         """Все action-страницы приложения доступны по имени?"""
-        urls = self.get_urls_for_action_pages()
-        self._test_response_is_redirection(urls, self.client)
-
-    def test_view_page_names_correspond_to_proper_templates(self):
-        """Всем именам view-страниц приложения сопоставлены надлежащие шаблоны?
-        """
-        self._test_templates()
+        post_id = self.post.pk
+        username = self.author.username
+        urls = {
+            reverse('posts:add_comment', args=[post_id]): None,
+            reverse('posts:profile_follow', args=[username]): None,
+            reverse('posts:profile_unfollow', args=[username]): None,
+        }
+        self._test_pages_redirect(urls)
 
 
 class IndexPageTestCase(utils.BaseTestCaseForPageWithPaginator):
@@ -373,7 +356,7 @@ class NewCommentCreationTestCase(utils.BaseTestCaseForCommentFormWork):
         self.assertNotIn(comment, page_comments)
 
 
-class FollowUnfollowTestCase(TestCase):
+class FollowUnfollowTestCase(BaseTestCase):
     """Набор тестов для проверки возможности подписки/отписки."""
 
     @classmethod

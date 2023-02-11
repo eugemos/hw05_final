@@ -4,21 +4,21 @@ import tempfile
 import os.path
 
 from django.core.files.uploadedfile import SimpleUploadedFile
-from django.test import TestCase, override_settings
+from django.test import override_settings
 from django.conf import settings
 from django import forms
 from django.urls import reverse
-from django.core.cache import cache
-
 
 from posts.models import Post, Group, Comment
 from users.models import User
+from core.tests.utils import BaseTestCase
+
 
 TEMP_MEDIA_ROOT = tempfile.mkdtemp(dir=settings.BASE_DIR)
 
 
 @override_settings(MEDIA_ROOT=TEMP_MEDIA_ROOT)
-class BaseTestCaseWithUploadedFiles(TestCase):
+class BaseTestCaseWithUploadedFiles(BaseTestCase):
     """Базовый класс для набора тестов, использующих загрузку файлов."""
 
     small_gif = (
@@ -50,10 +50,6 @@ class BaseTestCaseWithUploadedFiles(TestCase):
         """Очищает подпапку posts во временной папке для медиафайлов."""
         shutil.rmtree(os.path.join(TEMP_MEDIA_ROOT, 'posts'),
                       ignore_errors=True)
-
-    def setUp(self):
-        super().setUp()
-        cache.clear()
 
     def _test_files_are_equal(self, f1, f2):
         """Файлы f1, f2 имеют одинаковое содержимое?"""
@@ -144,7 +140,7 @@ class BaseTestCaseForPageWithPaginator(BaseTestCaseWithUploadedFiles):
                         )
 
 
-class BaseTestCaseForPostFormView(TestCase):
+class BaseTestCaseForPostFormView(BaseTestCase):
     """Заготовка набора тестов, проверяющих отображение формы PostForm
     на страницах приложения posts.
     """
@@ -218,7 +214,7 @@ class BaseTestCaseForPostFormWork(BaseTestCaseWithUploadedFiles):
         self._test_files_are_equal(post.image, image)
 
 
-class BaseTestCaseForCommentFormWork(TestCase):
+class BaseTestCaseForCommentFormWork(BaseTestCase):
     """Базовый класс для набора тестов, проверяющих работу формы CommentForm.
     """
 

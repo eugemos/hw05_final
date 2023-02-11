@@ -1,11 +1,11 @@
 """Тесты для проверки форм в приложении users."""
-from django.test import TestCase
 from django.urls import reverse
 
 from users.models import User
+from core.tests.utils import BaseTestCase
 
 
-class UserCreationFormTestCase(TestCase):
+class UserCreationFormTestCase(BaseTestCase):
     """Набор тестов для проверки формы создания нового пользователя."""
 
     def test_valid_form_on_signup_page_creates_new_user(self):

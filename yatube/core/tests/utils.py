@@ -1,80 +1,113 @@
 """Базовые классы для наборов тестов в других приложениях."""
+from functools import partial
 from http import HTTPStatus
 
 from django.test import TestCase
 from django.core.cache import cache
+from django.urls import reverse
 
 
-class URLTests(TestCase):
-    """
-    Набор функций, проверяющих различные реакции при обращении по заданным URL.
-    """
+class BaseTestCase(TestCase):
+    """Базовый класс для всех наборов теcтов в проекте Yatube."""
 
     def setUp(self):
+        """Создаёт фикстуры для отдельного теста."""
         super().setUp()
         cache.clear()
 
-    def _test_response_is_ok(self, urls, client):
-        """Запросы к заданным URL успешны?"""
-        self._test_response_status(urls, client, HTTPStatus.OK)
 
-    def _test_response_is_redirection(self, urls, client):
-        """Запросы к заданным URL были перенаправлены?"""
-        self._test_response_status(urls, client, HTTPStatus.FOUND)
+class URLTests(BaseTestCase):
+    """Набор функций для проверки реакций при обращении к URL."""
 
-    def _test_response_is_not_found(self, urls, client):
-        """Страницы по заданным URL не найдены?"""
-        self._test_response_status(urls, client, HTTPStatus.NOT_FOUND)
+    def _test_page_accessible(self, url, client, template):
+        """Страница доступна и использует надлежащий шаблон?"""
+        response = client.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.OK)
+        self.assertTemplateUsed(response, template)
 
-    def _test_response_status(self, urls, client, status_code):
-        """Запросы к заданным URL вернули требуемый код завершения?"""
-        for url in urls:
+    def _test_page_inaccessible(self, url, client):
+        """Страница недоступна?"""
+        response = client.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.NOT_FOUND)
+
+    def _test_page_redirects(self, url, client, redirection_url=None):
+        """Страница выполняет перенаправление на требуемый URL?"""
+        response = client.get(url)
+        self.assertEqual(response.status_code, HTTPStatus.FOUND)
+        if redirection_url:
+            self.assertRedirects(response, redirection_url)
+
+    def _test_page_redirects_to_login(self, url, client):
+        """Страница выполняет перенаправление на страницу регистрации?"""
+        response = client.get(url)
+        self.assertRedirects(response, reverse('users:login') + f'?next={url}')
+
+
+class BaseRuledURLTestCase(URLTests):
+    """Базовый класс для набора тестов, проверяющего реакции при обращении
+    к URL в соответствии с заданными правилами.
+    """
+
+    def must_be_accessible(self, client, template):
+        """Возвращает тест, проверяющий, что страница доступна и использует
+        надлежащий шаблон.
+        """
+        test = partial(self._test_page_accessible,
+                       client=client, template=template)
+        test.__doc__ = 'Страница доступна?'
+        return test
+
+    def must_be_inaccessible(self, client):
+        """Возвращает тест, проверяющий, что страница недоступна."""
+        test = partial(self._test_page_inaccessible, client=client)
+        test.__doc__ = 'Страница недоступна?'
+        return test
+
+    def must_redirect(self, client, redirection_url):
+        """Возвращает тест, проверяющий, что страница выполняет
+        перенаправление.
+        """
+        test = partial(self._test_page_redirects,
+                       client=client, redirection_url=redirection_url)
+        test.__doc__ = f'Страница перенаправляет на {redirection_url}?'
+        return test
+
+    def must_redirect_to_login(self, client):
+        """Возвращает тест, проверяющий, что страница выполняет
+        перенаправление на страницу регистрации.
+        """
+        test = partial(self._test_page_redirects_to_login, client=client)
+        test.__doc__ = 'Страница перенаправляет на login?'
+        return test
+
+    def execute(self, rules: dict):
+        """Выполняет тестирование в соответствии с набором правил."""
+        for url, tests in rules.items():
             with self.subTest(url=url):
-                response = client.get(url)
-                self.assertEqual(response.status_code, status_code)
-
-    def _test_redirection(self, urls, client, redirection_rule):
-        """Запросы к заданным URL были перенаправлены в нужные места?"""
-        for url in urls:
-            with self.subTest(url=url):
-                response = client.get(url)
-                self.assertRedirects(response, redirection_rule(url))
-
-    def _test_templates(self, urls, client):
-        """Страницы по заданным URL используют надлежащие шаблоны?"""
-        for url, template in urls.items():
-            with self.subTest(url=url):
-                response = client.get(url)
-                self.assertTemplateUsed(response, template)
+                for test in tests:
+                    with self.subTest(test=test.__doc__):
+                        test(url)
 
 
 class BaseSimpleURLTestCase(URLTests):
-    """Заготовка набора тестов для простого приложения, проверяющих различные
-    реакции при обращении по заданным URL.
+    """Базовый класс для набора тестов, проверяющих реакции при обращении к URL
+    в простом приложении.
     """
 
-    @classmethod
-    def get_urls(cls):
-        """Возвращает словарь {'url':'template'} для всех страниц приложения.
-        """
-        raise NotImplementedError
+    def _test_pages_accessible(self, urls: dict):
+        """Страницы доступна и используют надлежащие шаблоны?"""
+        for url, template in urls.items():
+            with self.subTest(url=url):
+                self._test_page_accessible(url, self.client, template)
 
-    @classmethod
-    def get_nonexistent_urls(cls):
-        """Возвращает перечень (iterable) несуществующих URL для проверки."""
-        raise NotImplementedError
+    def _test_pages_redirect(self, urls: dict):
+        """Страницы выполняют перенаправление на требуемые URL?"""
+        for url, redirect_url in urls.items():
+            with self.subTest(url=url):
+                self._test_page_redirects(url, self.client, redirect_url)
 
-    def _test_response_is_ok(self):
-        """Запросы к URL из списка успешны?"""
-        urls = self.get_urls()
-        super()._test_response_is_ok(urls, self.client)
-
-    def _test_response_is_not_found(self):
-        """Страницы с URL из списка не найдены?"""
-        urls = self.get_nonexistent_urls()
-        super()._test_response_is_not_found(urls, self.client)
-
-    def _test_templates(self):
-        """Страницы с URL из списка используют надлежащие шаблоны?"""
-        urls = self.get_urls()
-        super()._test_templates(urls, self.client)
+    def _test_pages_inaccessible(self, urls):
+        """Страницы недоступны?"""
+        for url in urls:
+            with self.subTest(url=url):
+                self._test_page_inaccessible(url, self.client)

@@ -1,13 +1,12 @@
 """Тесты для проверки моделей приложения posts."""
-from django.test import TestCase
-
 from users.models import User
 from posts.models import Group, Post, Comment
 from posts.constants import (NUMBER_OF_POST_CHARS_DISPLAYED,
                              NUMBER_OF_COMMENT_CHARS_DISPLAYED)
+from core.tests.utils import BaseTestCase
 
 
-class ModelTests(TestCase):
+class ModelTests(BaseTestCase):
     """Набор функций для проверки моделей."""
 
     def _test_obj_fields_have_required_property_values(

@@ -23,7 +23,10 @@
         </a>
       {% endif %}
     </div>
-    {% include 'posts/includes/content_page.html' with group_ref=True %}
+    {% for post in page_obj %}
+      {% include 'posts/includes/post_card.html'  with group_ref=True %}
+      {% if not forloop.last %}<hr>{% endif %}
+    {% endfor %}
     {% include 'posts/includes/paginator.html' %}
   </div>
 {% endblock %}
