@@ -176,7 +176,8 @@ class BaseTestCaseForPostFormWork(BaseTestCaseWithUploadedFiles):
 
     def create_new_post_with_form_and_get_it(self, form_data, client):
         """Создаёт новую запись с помощью формы и возвращает её."""
-        old_post_ids = (post.pk for post in Post.objects.all())
+        # old_post_ids = (post.pk for post in Post.objects.all())
+        old_post_ids = list(Post.objects.values_list('pk', flat=True))
         response = client.post(
             reverse('posts:post_create'),
             data=form_data,
@@ -210,7 +211,7 @@ class BaseTestCaseForPostFormWork(BaseTestCaseWithUploadedFiles):
         self.assertEqual(post.author, author)
         self.assertEqual(post.text, text)
         self.assertEqual(post.group.pk, group)
-        self.assertEqual(post.image.name, 'posts/' + image.name)
+        self.assertEqual(post.image.name, Post.IMAGES_UPLOAD_PATH + image.name)
         self._test_files_are_equal(post.image, image)
 
 
@@ -223,7 +224,8 @@ class BaseTestCaseForCommentFormWork(BaseTestCase):
     ):
         """Создаёт новый комментарий к записи с помощью формы и возвращает его.
         """
-        old_comment_ids = (comment.pk for comment in Comment.objects.all())
+        # old_comment_ids = (comment.pk for comment in Comment.objects.all())
+        old_comment_ids = list(Comment.objects.values_list('pk', flat=True))
         response = client.post(
             reverse('posts:add_comment', args=[post_id]),
             data=form_data,

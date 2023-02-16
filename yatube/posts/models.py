@@ -12,6 +12,10 @@ class Group(models.Model):
     slug = models.SlugField('Идентификатор', unique=True)
     description = models.TextField('Описание')
 
+    class Meta:
+        verbose_name = 'Группа записей'
+        verbose_name_plural = 'Группы записей'
+
     def __str__(self):
         return self.title
 
@@ -28,6 +32,8 @@ class Published(models.Model):
 
 class Post(Published):
     """Представляет опубликованную запись."""
+
+    IMAGES_UPLOAD_PATH = 'posts/'
 
     text = models.TextField(
         'Текст записи',
@@ -51,9 +57,13 @@ class Post(Published):
     image = models.ImageField(
         'Иллюстрация',
         help_text='Можно загрузить файл с иллюстрацией',
-        upload_to='posts/',
+        upload_to=IMAGES_UPLOAD_PATH,
         blank=True,
     )
+
+    class Meta(Published.Meta):
+        verbose_name = 'Запись'
+        verbose_name_plural = 'Записи'
 
     def __str__(self):
         return self.text[:NUMBER_OF_POST_CHARS_DISPLAYED]
@@ -79,6 +89,10 @@ class Comment(Published):
         on_delete=models.CASCADE,
     )
 
+    class Meta(Published.Meta):
+        verbose_name = 'Комментарий'
+        verbose_name_plural = 'Комментарии'
+
     def __str__(self):
         return self.text[:NUMBER_OF_COMMENT_CHARS_DISPLAYED]
 
@@ -99,5 +113,15 @@ class Follow(models.Model):
         on_delete=models.CASCADE,
     )
 
+    class Meta:
+        verbose_name = 'Подписка'
+        verbose_name_plural = 'Подписки'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['user', 'author'],
+                name='user_follows_author_only_once'
+            ),
+        ]
+
     def __str__(self):
-        return f'{self.user.username}-->{self.author.username}'
+        return f'{self.user.username} --> {self.author.username}'

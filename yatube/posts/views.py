@@ -28,11 +28,7 @@ def index(request):
 def group_posts(request, slug):
     """Отображает страницу группы slug."""
     group = get_object_or_404(Group, slug=slug)
-    posts = Post.objects.select_related(
-        'author',
-    ).filter(
-        group=group,
-    )
+    posts = group.posts.select_related('author')
     page_obj = make_page_obj(request, posts, NUMBER_OF_POSTS_ON_GROUP_PAGE)
     context = {
         'page_obj': page_obj,
@@ -45,21 +41,19 @@ def group_posts(request, slug):
 def profile(request, username):
     """Отображает страницу пользователя username."""
     author = get_object_or_404(User, username=username)
-    posts = Post.objects.select_related(
-        'group',
-    ).filter(
-        author=author,
-    )
+    posts = author.posts.select_related('group')
     page_obj = make_page_obj(request, posts, NUMBER_OF_POSTS_ON_USER_PAGE)
-    user = request.user
     following = (
-        user.is_authenticated
-        and Follow.objects.filter(user=user, author=author).exists()
+        request.user.is_authenticated
+        and Follow.objects.filter(user=request.user, author=author).exists()
     )
+
     context = {
         'page_obj': page_obj,
         'author': author,
         'following': following,
+        'followers_count': author.following.count(),
+        'following_count': author.follower.count(),
     }
 
     return render(request, 'posts/profile.html', context)
@@ -96,7 +90,7 @@ def post_create(request):
 
 @login_required
 def post_edit(request, post_id):
-    """Отображаете страницу редактирования записи post_id."""
+    """Отображает страницу редактирования записи post_id."""
     post = get_object_or_404(Post, id=post_id)
     if post.author.username != request.user.username:
         return redirect(
@@ -136,9 +130,11 @@ def follow_index(request):
     """Отображает страницу с постами авторов, на которых подписан текущий
     пользователь.
     """
-    user = request.user
-    authors = User.objects.filter(following__user=user)
-    posts = Post.objects.filter(author__in=authors).select_related('group')
+    posts = Post.objects.filter(
+        author__following__user=request.user
+    ).select_related(
+        'group'
+    )
     page_obj = make_page_obj(request, posts, NUMBER_OF_POSTS_ON_MAIN_PAGE)
     context = {
         'page_obj': page_obj,

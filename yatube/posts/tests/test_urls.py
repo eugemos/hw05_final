@@ -29,70 +29,67 @@ class URLTestCase(BaseRuledURLTestCase):
 
     def test_urls(self):
         """Проверяет URL приложения post в соответствии с правилами."""
-        client = self.client
         authorized_client = Client()
         authorized_client.force_login(self.user)
         author_client = Client()
         author_client.force_login(self.author)
-        post_id = self.post.pk
-        nonexistent_post_id = post_id + 1
-        author_name = self.author.username
+        nonexistent_post_id = self.post.pk + 1
 
         rules = {
             '/': (
-                self.must_be_accessible(client, 'posts/index.html'),
+                self.must_be_accessible(self.client, 'posts/index.html'),
             ),
             f'/group/{self.group.slug}/': (
-                self.must_be_accessible(client, 'posts/group_list.html'),
+                self.must_be_accessible(self.client, 'posts/group_list.html'),
             ),
-            f'/profile/{author_name}/': (
-                self.must_be_accessible(client, 'posts/profile.html'),
+            f'/profile/{self.author.username}/': (
+                self.must_be_accessible(self.client, 'posts/profile.html'),
             ),
-            f'/posts/{post_id}/': (
-                self.must_be_accessible(client, 'posts/post_detail.html'),
+            f'/posts/{self.post.pk}/': (
+                self.must_be_accessible(self.client, 'posts/post_detail.html'),
             ),
 
             '/create/': (
                 self.must_be_accessible(authorized_client,
                                         'posts/create_post.html'),
-                self.must_redirect_to_login(client),
+                self.must_redirect_to_login(self.client),
             ),
             '/follow/': (
                 self.must_be_accessible(authorized_client,
                                         'posts/follow.html'),
-                self.must_redirect_to_login(client),
+                self.must_redirect_to_login(self.client),
             ),
 
-            f'/posts/{post_id}/comment/': (
+            f'/posts/{self.post.pk}/comment/': (
                 self.must_redirect(
                     authorized_client,
-                    reverse('posts:post_detail', args=[post_id])
+                    reverse('posts:post_detail', args=[self.post.pk])
                 ),
-                self.must_redirect_to_login(client),
+                self.must_redirect_to_login(self.client),
             ),
-            f'/profile/{author_name}/follow/': (
+            f'/profile/{self.author.username}/follow/': (
                 self.must_redirect(
                     authorized_client,
-                    reverse('posts:profile', args=[author_name])
+                    reverse('posts:profile', args=[self.author.username])
                 ),
-                self.must_redirect_to_login(client),
+                self.must_redirect_to_login(self.client),
             ),
-            f'/profile/{author_name}/unfollow/': (
+            f'/profile/{self.author.username}/unfollow/': (
                 self.must_redirect(
                     authorized_client,
-                    reverse('posts:profile', args=[author_name])
+                    reverse('posts:profile', args=[self.author.username])
                 ),
-                self.must_redirect_to_login(client),
+                self.must_redirect_to_login(self.client),
             ),
 
-            f'/posts/{post_id}/edit/': (
+            f'/posts/{self.post.pk}/edit/': (
                 self.must_be_accessible(author_client,
                                         'posts/create_post.html'),
                 self.must_redirect(
                     authorized_client,
-                    reverse('posts:post_detail', args=[post_id])
+                    reverse('posts:post_detail', args=[self.post.pk])
                 ),
-                self.must_redirect_to_login(client),
+                self.must_redirect_to_login(self.client),
             ),
 
             '/nonexistent_page/': (self.must_be_inaccessible(author_client),),

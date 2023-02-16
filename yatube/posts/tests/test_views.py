@@ -35,7 +35,8 @@ class PageNamesTestCase(BaseSimpleURLTestCase):
     def setUp(self):
         """Создаёт фикстуры для отдельного теста."""
         super().setUp()
-        self.client.force_login(self.author)
+        self.author_client = Client()
+        self.author_client.force_login(self.author)
 
     def test_view_pages_accessible_by_name(self):
         """Все view-страницы приложения доступны по имени и используют
@@ -58,7 +59,7 @@ class PageNamesTestCase(BaseSimpleURLTestCase):
             reverse('posts:post_edit', args=[post_id]):
                 'posts/create_post.html',
         }
-        self._test_pages_accessible(urls)
+        self._test_pages_accessible(urls, self.author_client)
 
     def test_action_pages_accessible_by_name(self):
         """Все action-страницы приложения доступны по имени?"""
@@ -69,7 +70,7 @@ class PageNamesTestCase(BaseSimpleURLTestCase):
             reverse('posts:profile_follow', args=[username]): None,
             reverse('posts:profile_unfollow', args=[username]): None,
         }
-        self._test_pages_redirect(urls)
+        self._test_pages_redirect(urls, self.author_client)
 
 
 class IndexPageTestCase(utils.BaseTestCaseForPageWithPaginator):
@@ -129,6 +130,37 @@ class ProfilePageTestCase(utils.BaseTestCaseForPageWithPaginator):
         response = self.client.get(self.url)
         author_of_context = response.context['author']
         self.assertEqual(author_of_context, self.author)
+
+    def test_following_of_context_is_correct(self):
+        """В контекст шаблона передаётся верное значение following?"""
+        user = User.objects.create_user(username='test-user')
+        Follow.objects.create(user=user, author=self.author)
+        url_other = reverse('posts:profile', args=[self.author_other.username])
+        authorized_client = Client()
+        authorized_client.force_login(user)
+
+        with self.subTest(test='Неавторизованный пользователь.'):
+            self._test_following_of_context_has_expected_value(
+                self.url, self.client, False
+            )
+
+        with self.subTest(test='Авторизованный подписанный пользователь.'):
+            self._test_following_of_context_has_expected_value(
+                self.url, authorized_client, True
+            )
+
+        with self.subTest(test='Авторизованный неподписанный пользователь.'):
+            self._test_following_of_context_has_expected_value(
+                url_other, authorized_client, False
+            )
+
+    def _test_following_of_context_has_expected_value(
+        self, url, client, exp_following
+    ):
+        """В контекст шаблона передаётся ожидаемое значение following?"""
+        response = client.get(url)
+        following_of_context = response.context['following']
+        self.assertEqual(following_of_context, exp_following)
 
 
 class PostDetailPageTestCase(utils.BaseTestCaseWithUploadedFiles):

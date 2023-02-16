@@ -94,20 +94,24 @@ class BaseSimpleURLTestCase(URLTests):
     в простом приложении.
     """
 
-    def _test_pages_accessible(self, urls: dict):
-        """Страницы доступна и используют надлежащие шаблоны?"""
+    def _test_pages_accessible(self, urls: dict, client=None):
+        """Страницы доступны и используют надлежащие шаблоны?"""
         for url, template in urls.items():
             with self.subTest(url=url):
-                self._test_page_accessible(url, self.client, template)
+                self._test_page_accessible(
+                    url, client or self.client, template
+                )
 
-    def _test_pages_redirect(self, urls: dict):
+    def _test_pages_redirect(self, urls: dict, client=None):
         """Страницы выполняют перенаправление на требуемые URL?"""
         for url, redirect_url in urls.items():
             with self.subTest(url=url):
-                self._test_page_redirects(url, self.client, redirect_url)
+                self._test_page_redirects(
+                    url, client or self.client, redirect_url
+                )
 
-    def _test_pages_inaccessible(self, urls):
+    def _test_pages_inaccessible(self, urls, client=None):
         """Страницы недоступны?"""
         for url in urls:
             with self.subTest(url=url):
-                self._test_page_inaccessible(url, self.client)
+                self._test_page_inaccessible(url, client or self.client)
