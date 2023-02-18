@@ -7,8 +7,8 @@
     <div class="mb-5">
       <h1>Все посты пользователя {{ author.get_full_name }}</h1>
       <h3>Всего постов: {{ page_obj.paginator.count }}</h3>
-      <h5>Подписчиков: {{ followers_count }}</h5>
-      <h5>Подписок: {{ following_count }}</h5>
+      <h5>Подписчиков: {{ author.following.count }}</h5>
+      <h5>Подписок: {{ author.follower.count }}</h5>
       {% if user.is_authenticated and user != author %}
         {% if following %}
           <a class="btn btn-lg btn-light"

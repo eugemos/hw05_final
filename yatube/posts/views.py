@@ -52,8 +52,6 @@ def profile(request, username):
         'page_obj': page_obj,
         'author': author,
         'following': following,
-        'followers_count': author.following.count(),
-        'following_count': author.follower.count(),
     }
 
     return render(request, 'posts/profile.html', context)
