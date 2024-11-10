@@ -15,31 +15,23 @@ import os
 # Build paths inside the project like this: os.path.join(BASE_DIR, ...)
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/2.2/howto/deployment/checklist/
-
-# SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = '!st7bbmlif!&8zphl8*a$2c#uuix3a&&lkw*9q1sesyq6b-0@z'
-
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+try:
+    import dotenv
+    dotenv.load_dotenv()
+except ModuleNotFoundError:
+    pass
 
 
-ALLOWED_HOSTS = [
-    'localhost',
-    '127.0.0.1',
-    '[::1]',
-    'testserver',
-    'www.emos.fvds.ru',
-    'emos.fvds.ru',
-]
+SECRET_KEY = os.getenv('SECRET_KEY')
 
+DEBUG = os.getenv('DEBUG') is not None
+
+ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS')
+ALLOWED_HOSTS = ALLOWED_HOSTS.split(';') if ALLOWED_HOSTS else []
 
 INTERNAL_IPS = [
     '127.0.0.1',
 ]
-
 
 # Application definition
 
@@ -55,8 +47,9 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'sorl.thumbnail',
-    # 'debug_toolbar',
 ]
+if DEBUG:
+    INSTALLED_APPS.append('debug_toolbar')
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -66,8 +59,9 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    # 'debug_toolbar.middleware.DebugToolbarMiddleware',
 ]
+if DEBUG:
+    MIDDLEWARE.append('debug_toolbar.middleware.DebugToolbarMiddleware')
 
 ROOT_URLCONF = 'yatube.urls'
 
@@ -93,11 +87,11 @@ WSGI_APPLICATION = 'yatube.wsgi.application'
 
 # Database
 # https://docs.djangoproject.com/en/2.2/ref/settings/#databases
-
+sqlite_db = os.getenv('SQLITE_DB')
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': os.path.join(BASE_DIR, 'db.sqlite3'),
+        'NAME': sqlite_db,
     }
 }
 
