@@ -31,8 +31,8 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     '[::1]',
     'testserver',
-    # 'www.yamos.pythonanywhere.com',
-    # 'yamos.pythonanywhere.com',
+    'www.emos.fvds.ru',
+    'emos.fvds.ru',
 ]
 
 
